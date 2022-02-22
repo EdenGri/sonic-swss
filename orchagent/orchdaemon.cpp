@@ -6,10 +6,10 @@
 #include "logger.h"
 #include <sairedis.h>
 #include "warm_restart.h"
-
 #define SAI_SWITCH_ATTR_CUSTOM_RANGE_BASE SAI_SWITCH_ATTR_CUSTOM_RANGE_START
 #include "sairedis.h"
 #include "chassisorch.h"
+
 
 using namespace std;
 using namespace swss;
@@ -51,6 +51,7 @@ CoppOrch *gCoppOrch;
 P4Orch *gP4Orch;
 BfdOrch *gBfdOrch;
 Srv6Orch *gSrv6Orch;
+TxMonitorOrch* gTxMonitorOrch;
 
 bool gIsNatSupported = false;
 
@@ -128,6 +129,7 @@ bool OrchDaemon::init()
     gFdbOrch = new FdbOrch(m_applDb, app_fdb_tables, stateDbFdb, stateMclagDbFdb, gPortsOrch);
     TableConnector stateDbBfdSessionTable(m_stateDb, STATE_BFD_SESSION_TABLE_NAME);
     gBfdOrch = new BfdOrch(m_applDb, APP_BFD_SESSION_TABLE_NAME, stateDbBfdSessionTable);
+
 
     vector<string> vnet_tables = {
             APP_VNET_RT_TABLE_NAME,
@@ -317,6 +319,23 @@ bool OrchDaemon::init()
 
     gNhgMapOrch = new NhgMapOrch(m_applDb, APP_FC_TO_NHG_INDEX_MAP_TABLE_NAME);
 
+    //TODO:
+    /*
+        TableConnector configueTxTableConnector(m_configDb,CFG_PORT_TX_ERROR_TABLE_NAME);
+        TableConnector stateTxTableConnector(m_stateDb,STATE_PORT_TX_ERROR_TABLE_NAME);
+        DBConnector counterDB(COUNTERS_DB, DBConnector::DEFAULT_UNIXSOCKET, 0);
+        TableConnector countersTableConnector(&counterDB,COUNTERS_TABLE);
+        gTxMonitorOrch = &TxMonitorOrch::getInstance(configueTxTableConnector,
+                                                     stateTxTableConnector,
+                                                     countersTableConnector);
+                                                     */
+        TableConnector configueTxTableConnector(m_configDb,"CFG_PORT_TX_ERROR_TABLE");
+        TableConnector stateTxTableConnector(m_stateDb,"STATE_PORT_TX_ERROR_TABLE");
+        DBConnector counterDB(COUNTERS_DB, DBConnector::DEFAULT_UNIXSOCKET, 0);
+        TableConnector countersTableConnector(&counterDB,COUNTERS_TABLE);
+        gTxMonitorOrch = &TxMonitorOrch::getInstance(configueTxTableConnector,
+                                                     stateTxTableConnector,
+                                                     countersTableConnector);
     /*
      * The order of the orch list is important for state restore of warm start and
      * the queued processing in m_toSync map after gPortsOrch->allPortsReady() is set.
@@ -325,7 +344,9 @@ bool OrchDaemon::init()
      * when iterating ConsumerMap. This is ensured implicitly by the order of keys in ordered map.
      * For cases when Orch has to process tables in specific order, like PortsOrch during warm start, it has to override Orch::doTask()
      */
-    m_orchList = { gSwitchOrch, gCrmOrch, gPortsOrch, gBufferOrch, mux_orch, mux_cb_orch, gIntfsOrch, gNeighOrch, gNhgMapOrch, gNhgOrch, gCbfNhgOrch, gRouteOrch, gCoppOrch, qos_orch, wm_orch, policer_orch, tunnel_decap_orch, sflow_orch, debug_counter_orch, gMacsecOrch, gBfdOrch, gSrv6Orch};
+    m_orchList = { gSwitchOrch, gCrmOrch, gPortsOrch, gBufferOrch, mux_orch, mux_cb_orch, gIntfsOrch, gNeighOrch,
+                   gNhgMapOrch, gNhgOrch, gCbfNhgOrch, gRouteOrch, gCoppOrch, qos_orch, wm_orch, policer_orch,
+                   tunnel_decap_orch, sflow_orch, debug_counter_orch, gMacsecOrch, gBfdOrch, gSrv6Orch, gTxMonitorOrch};
 
     bool initialize_dtel = false;
     if (platform == BFN_PLATFORM_SUBSTRING || platform == VS_PLATFORM_SUBSTRING)

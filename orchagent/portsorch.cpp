@@ -4927,7 +4927,7 @@ bool PortsOrch::addLag(string lag_alias, uint32_t spa_id, int32_t switch_id)
     auto lagport = m_portList.find(lag_alias);
     if (lagport != m_portList.end())
     {
-        /* The deletion of bridgeport attached to the lag may still be 
+        /* The deletion of bridgeport attached to the lag may still be
          * pending due to fdb entries still present on the lag. Wait
          * until the cleanup is done.
          */
