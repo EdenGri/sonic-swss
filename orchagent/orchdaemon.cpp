@@ -333,9 +333,11 @@ bool OrchDaemon::init()
         TableConnector stateTxTableConnector(m_stateDb,"STATE_PORT_TX_ERROR_TABLE");
         DBConnector counterDB(COUNTERS_DB, DBConnector::DEFAULT_UNIXSOCKET, 0);
         TableConnector countersTableConnector(&counterDB,COUNTERS_TABLE);
+        TableConnector interfaceToOidTableConnector(&counterDB,COUNTERS_PORT_NAME_MAP);
         gTxMonitorOrch = &TxMonitorOrch::getInstance(configueTxTableConnector,
                                                      stateTxTableConnector,
-                                                     countersTableConnector);
+                                                     countersTableConnector,
+                                                     interfaceToOidTableConnector);
     /*
      * The order of the orch list is important for state restore of warm start and
      * the queued processing in m_toSync map after gPortsOrch->allPortsReady() is set.

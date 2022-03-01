@@ -13,9 +13,10 @@ class TxMonitorOrch: public Orch
     public:
         static TxMonitorOrch& getInstance(TableConnector configueTxTableConnector,
                                           TableConnector stateTxTableConnector,
-                                          TableConnector countersTableConnector);
+                                          TableConnector countersTableConnector,
+                                          TableConnector interfaceToOidTableConnector);
 
-        void printPortsErrorStatistics();
+        //void printPortsErrorStatistics(std::map<std::string, TxMonitorOrch::TxPortErrorStatistics*> interfaceToPortErrorStatistics);
         virtual void doTask(swss::SelectableTimer &timer);
         virtual void doTask(Consumer &consumer){}
 
@@ -44,14 +45,15 @@ class TxMonitorOrch: public Orch
         swss::Table m_configueTxTable;
         swss::Table m_stateTxTable;
         swss::Table m_countersTable;
+        swss::Table m_interfaceToOidTable;
         u_int32_t m_pollPeriod;
         u_int32_t m_threshold;
-        std::map<std::string, TxPortErrorStatistics*> m_interfaceToPortErrorStatistics{};
         bool m_isPortsMapInitialized{};
         std::map<std::string, TxMonitorOrch::TxPortErrorStatistics*> createPortsErrorStatisticsMap();
         TxMonitorOrch(TableConnector configueTxTableConnectorr,
                       TableConnector stateTxTableConnector,
-                      TableConnector countersTableConnector);
+                      TableConnector countersTableConnector,
+                      TableConnector interfaceToOidTableConnector);
         virtual ~TxMonitorOrch(void);
         bool getIsOkStatus(u_int64_t, u_int64_t);
         void updateStateDB(std::string, std::string);

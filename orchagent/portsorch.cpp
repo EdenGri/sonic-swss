@@ -2573,6 +2573,7 @@ void PortsOrch::doPortTask(Consumer &consumer)
                 addSystemPorts();
                 m_initDone = true;
                 SWSS_LOG_INFO("Get PortInitDone notification from portsyncd.");
+                SWSS_LOG_NOTICE("TxMonitorOrchLogs: Get PortInitDone notification from portsyncd.");
             }
 
             it = consumer.m_toSync.erase(it);
@@ -6490,6 +6491,7 @@ bool PortsOrch::getRecircPort(Port &port, string role)
 
 bool PortsOrch::addSystemPorts()
 {
+    SWSS_LOG_NOTICE("TxMonitorOrchLogs: in portsorc, addSystemPorts");
     vector<string> keys;
     vector<FieldValueTuple> spFv;
 
@@ -6533,10 +6535,12 @@ bool PortsOrch::addSystemPorts()
 
         if(system_port_id < 0 || switch_id < 0 || core_index < 0 || core_port_index < 0)
         {
+            SWSS_LOG_NOTICE("TxMonitorOrchLogs: in addSystemPorts in if statment");
             SWSS_LOG_ERROR("Invalid or Missing field values for %s! system_port id:%d, switch_id:%d, core_index:%d, core_port_index:%d",
                     alias.c_str(), system_port_id, switch_id, core_index, core_port_index);
             continue;
         }
+        SWSS_LOG_NOTICE("TxMonitorOrchLogs: in addSystemPorts after if statment");
 
         tuple<int, int, int> sp_key(switch_id, core_index, core_port_index);
 
@@ -6550,6 +6554,7 @@ bool PortsOrch::addSystemPorts()
 
             //Retrive system port config info and enable
             system_port_oid = m_systemPortOidMap[sp_key];
+            SWSS_LOG_NOTICE("TxMonitorOrchLogs: in portsorc, oid is: %lu", system_port_oid);
 
             attr.id = SAI_SYSTEM_PORT_ATTR_TYPE;
             attrs.push_back(attr);
@@ -6625,7 +6630,9 @@ bool PortsOrch::addSystemPorts()
             //System port does not exist in the switch
             //This can not happen since all the system ports are supposed to be created during switch creation itself
 
-            SWSS_LOG_ERROR("System port %s does not exist in switch. Port not added!", alias.c_str());
+            SWSS_LOG_ERROR("System port %s does not exist in switch. Poruh8t not added!", alias.c_str());
+            SWSS_LOG_NOTICE("TxMonitorOrchLogs: in portsorc, addSystemPorts hereeee");
+
             continue;
         }
     }
