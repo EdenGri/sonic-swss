@@ -319,18 +319,9 @@ bool OrchDaemon::init()
 
     gNhgMapOrch = new NhgMapOrch(m_applDb, APP_FC_TO_NHG_INDEX_MAP_TABLE_NAME);
 
-    //TODO:
-    /*
+
         TableConnector configueTxTableConnector(m_configDb,CFG_PORT_TX_ERROR_TABLE_NAME);
         TableConnector stateTxTableConnector(m_stateDb,STATE_PORT_TX_ERROR_TABLE_NAME);
-        DBConnector counterDB(COUNTERS_DB, DBConnector::DEFAULT_UNIXSOCKET, 0);
-        TableConnector countersTableConnector(&counterDB,COUNTERS_TABLE);
-        gTxMonitorOrch = &TxMonitorOrch::getInstance(configueTxTableConnector,
-                                                     stateTxTableConnector,
-                                                     countersTableConnector);
-                                                     */
-        TableConnector configueTxTableConnector(m_configDb,"CFG_PORT_TX_ERROR_TABLE");
-        TableConnector stateTxTableConnector(m_stateDb,"STATE_PORT_TX_ERROR_TABLE");
         DBConnector counterDB(COUNTERS_DB, DBConnector::DEFAULT_UNIXSOCKET, 0);
         TableConnector countersTableConnector(&counterDB,COUNTERS_TABLE);
         TableConnector interfaceToOidTableConnector(&counterDB,COUNTERS_PORT_NAME_MAP);
