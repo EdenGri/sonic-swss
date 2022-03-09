@@ -76,11 +76,11 @@ IFtoTxPortErrStat TxMonitorOrch::createPortsErrorStatisticsMap(){
             std::string oidStr;
             if(m_interfaceToOidTable.hget("",interface,oidStr)){
                 SWSS_LOG_NOTICE("oid: %s", oidStr.c_str());
-                interfaceToTxPortErrStat[interface]=new TxPortErrStat(oidStr);
+                interfaceToTxPortErrStat[interface]=make_unique<TxPortErrStat>(oidStr);
                 updateStateDB(oidStr.c_str(),"ok");
             }else{
                 SWSS_LOG_NOTICE("cant get oid for interface %s", interface.c_str());
-                interfaceToTxPortErrStat[interface]=new TxPortErrStat();
+                interfaceToTxPortErrStat[interface]=make_unique<TxPortErrStat>();
             }
 
         }
@@ -91,7 +91,6 @@ IFtoTxPortErrStat TxMonitorOrch::createPortsErrorStatisticsMap(){
 
     }
 
-//todo: complete
 TxMonitorOrch::~TxMonitorOrch(void){
     SWSS_LOG_ENTER();
 }
@@ -133,7 +132,7 @@ bool TxMonitorOrch::getIsOkStatus(u_int64_t newErrorCount, u_int64_t currErrorCo
     return (currErrorCount-newErrorCount) < this->m_threshold;
 }
 
-void TxMonitorOrch::poolTxErrorStatistics(std::string interface,TxPortErrStat* currTxStatistics){
+void TxMonitorOrch::poolTxErrorStatistics(std::string interface,std::shared_ptr<TxPortErrStat> currTxStatistics){
     SWSS_LOG_NOTICE("check statistics and update for interface: %s.\n",interface.c_str());
     std::string currOid = currTxStatistics->m_oid;
     if(currOid=="null"){
@@ -165,11 +164,10 @@ void TxMonitorOrch::doTask(SelectableTimer &timer){
         return;
     }
     static IFtoTxPortErrStat interfaceToTxPortErrStat = createPortsErrorStatisticsMap();
-    //printPortsErrorStatistics(interfaceToTxPortErrStat);
     for(const auto& entry : interfaceToTxPortErrStat){
 
         std::string interface = entry.first;
-        TxPortErrStat* currTxStatistics = entry.second;
+        std::shared_ptr<TxPortErrStat> currTxStatistics = entry.second;
         poolTxErrorStatistics(interface,currTxStatistics);
 
     }

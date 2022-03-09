@@ -27,7 +27,7 @@ class TxPortErrStat{
         }
 };
 
-typedef std::map<std::string, TxPortErrStat*> IFtoTxPortErrStat;
+typedef std::map<std::string, std::shared_ptr<TxPortErrStat>> IFtoTxPortErrStat;
 
 class TxMonitorOrch: public Orch
 {
@@ -39,7 +39,6 @@ class TxMonitorOrch: public Orch
                                           TableConnector countersTableConnector,
                                           TableConnector interfaceToOidTableConnector);
 
-        //void printPortsErrorStatistics(std::map<std::string, TxMonitorOrch::TxPortErrorStatistics*> interfaceToPortErrorStatistics);
 
         virtual void doTask(swss::SelectableTimer &timer);
         virtual void doTask(Consumer &consumer){}
@@ -62,7 +61,7 @@ class TxMonitorOrch: public Orch
 
         virtual ~TxMonitorOrch(void);
         std::string getOid(std::string interface);
-        void poolTxErrorStatistics(std::string interface,TxPortErrStat* currTxStatistics);
+        void poolTxErrorStatistics(std::string interface,std::shared_ptr<TxPortErrStat> currTxStatistics);
         bool getIsOkStatus(u_int64_t, u_int64_t);
         void updateStateDB(std::string, std::string);
         u_int64_t getNewErrorCount(std::string currOid);
