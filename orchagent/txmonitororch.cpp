@@ -1,7 +1,7 @@
 #include "txmonitororch.h"
 //TODO: try to understand why to take it as global and why not initialize
 extern PortsOrch* gPortsOrch;
-
+//todo: change the logs remove prefix of logs
 TxMonitorOrch& TxMonitorOrch::getInstance(TableConnector configueTxTableConnector,
                                           TableConnector stateTxTableConnector,
                                           TableConnector countersTableConnector,
@@ -33,32 +33,43 @@ TxMonitorOrch::TxMonitorOrch(TableConnector configueTxTableConnector,
 {
 
     SWSS_LOG_ENTER();
+    initConfigTxTable();
     auto interv = timespec { .tv_sec = m_pollPeriod, .tv_nsec = 0 };
     auto timer = new SelectableTimer(interv);
     auto executor = new ExecutableTimer(timer, this, "MC_TX_ERROR_COUNTERS_POLL");
     Orch::addExecutor(executor);
-    SWSS_LOG_NOTICE("TxMonitorOrchLogs: TxMonitorOrch initialized with the tables: %s, %s, %s\n",
+    SWSS_LOG_NOTICE("TxMonitorOrchLogs: TxMonitorOrch initialized with the tables: %s, %s, %s, %s\n",
                     configueTxTableConnector.second.c_str(),
                     stateTxTableConnector.second.c_str(),
-                    countersTableConnector.second.c_str());
+                    countersTableConnector.second.c_str(),
+                    interfaceToOidTableConnector.second.c_str());
 
 
     timer->start();
 }
 
-std::map<std::string, TxMonitorOrch::TxPortErrorStatistics*> TxMonitorOrch::createPortsErrorStatisticsMap(){
+void TxMonitorOrch::initConfigTxTable(){
+    vector<FieldValueTuple> periodFvs;
+    periodFvs.emplace_back("value", std::to_string(m_pollPeriod));
+    vector<FieldValueTuple> thresholdFvs;
+    thresholdFvs.emplace_back("value",std::to_string(m_threshold));
+    m_configueTxTable.set("period",periodFvs);
+    m_configueTxTable.set("threshod",thresholdFvs);
+
+}
+
+IFtoTxPortErrStat TxMonitorOrch::createPortsErrorStatisticsMap(){
 
     SWSS_LOG_ENTER();
-    std::map<std::string, TxPortErrorStatistics*> interfaceToPortErrorStatistics{};
+    IFtoTxPortErrStat interfaceToTxPortErrStat{};
     map<string, Port> &interfaceToPort =  gPortsOrch->getAllPorts();
-    SWSS_LOG_NOTICE("TxMonitorOrchLogs: interfaceToPort size: %lu", interfaceToPort.size());
 
         for (auto &entry : interfaceToPort)
         {
-
             string interface = entry.first;
-            SWSS_LOG_NOTICE("TxMonitorOrchLogs: interface name: %s", interface.c_str());
             Port p = entry.second;
+
+            SWSS_LOG_NOTICE("TxMonitorOrchLogs: interface name: %s", interface.c_str());
             if (p.m_type != Port::PHY)
             {
                 continue;
@@ -66,26 +77,23 @@ std::map<std::string, TxMonitorOrch::TxPortErrorStatistics*> TxMonitorOrch::crea
             std::string oidStr;
             if(m_interfaceToOidTable.hget("",interface,oidStr)){
                 SWSS_LOG_NOTICE("TxMonitorOrchLogs: oid: %s", oidStr.c_str());
+                interfaceToTxPortErrStat[interface]=new TxPortErrStat(oidStr);
+                updateStateDB(oidStr.c_str(),"ok");
             }else{
-                oidStr = "null";
-                SWSS_LOG_NOTICE("TxMonitorOrchLogs: cant get oid for interfae %s", interface.c_str());
+                SWSS_LOG_NOTICE("TxMonitorOrchLogs: cant get oid for interface %s", interface.c_str());
+                interfaceToTxPortErrStat[interface]=new TxPortErrStat();
             }
-
-
-
-            interfaceToPortErrorStatistics[interface]=new TxPortErrorStatistics(oidStr);
 
         }
     SWSS_LOG_NOTICE("TxMonitorOrchLogs: create txMonitorOrch map");
     SWSS_LOG_NOTICE("TxMonitorOrchLogs: The number of interfaces in txMonitorOrch map: %lu",
-                    interfaceToPortErrorStatistics.size());
-    m_isPortsMapInitialized=true;
-    return interfaceToPortErrorStatistics;
+                    interfaceToTxPortErrStat.size());
+    return interfaceToTxPortErrStat;
 
     }
 /*
-void TxMonitorOrch::printPortsErrorStatistics(std::map<std::string, TxPortErrorStatistics*> interfaceToPortErrorStatistics){
-    for(auto it = interfaceToPortErrorStatistics.cbegin(); it != interfaceToPortErrorStatistics.cend(); ++it)
+void TxMonitorOrch::printPortsErrorStatistics(IFtoTxPortErrStat interfaceToTxPortErrStat){
+    for(auto it = interfaceToTxPortErrStat.cbegin(); it != interfaceToTxPortErrStat.cend(); ++it)
     {
         std::string interface = it->first;
         std::string portStatistics = it->second->to_string();
@@ -94,6 +102,7 @@ void TxMonitorOrch::printPortsErrorStatistics(std::map<std::string, TxPortErrorS
     }
 }
 */
+//todo: complete
 TxMonitorOrch::~TxMonitorOrch(void){
     SWSS_LOG_ENTER();
 }
@@ -106,64 +115,78 @@ void TxMonitorOrch::updateStateDB(std::string currOid,std::string status){
     SWSS_LOG_NOTICE("TxMonitorOrchLogs: update stateDB txErrorTable at key oid: %s with the new status  %s", currOid.c_str(), status.c_str());
 }
 
+std::string TxMonitorOrch::getOid(std::string interface){
 
-
-void TxMonitorOrch::doTask(SelectableTimer &timer){
-    SWSS_LOG_ENTER();
-    SWSS_LOG_NOTICE("TxMonitorOrchLogs: all ports ready: %d.\n",gPortsOrch->allPortsReady());
-    if(!gPortsOrch->allPortsReady()){
-        SWSS_LOG_NOTICE("TxMonitorOrchLogs: Ports are not ready yet");
-        return;
-    }
-    static std::map<std::string, TxPortErrorStatistics*> interfaceToPortErrorStatistics = createPortsErrorStatisticsMap();
-    //printPortsErrorStatistics(interfaceToPortErrorStatistics);
-    for(const auto& entry : interfaceToPortErrorStatistics){
-
-        std::string interface = entry.first;
-        SWSS_LOG_NOTICE("TxMonitorOrchLogs: check statistics and update for interface: %s.\n",interface.c_str());
-
-        TxPortErrorStatistics* currTxStatistics = entry.second;
-        std::string currOid = currTxStatistics->m_oid;
-        u_int64_t currErrorCount = currTxStatistics->errorCount;
-        SWSS_LOG_NOTICE("TxMonitorOrchLogs: last tx counter: %s\n",std::to_string(currErrorCount).c_str());
-        //todo: what id currOid not valid
-        if(currOid=="null"){
-            std::string oidStr;
-            //todo add function and update the create map too
-            if(m_interfaceToOidTable.hget("",interface,oidStr)){
-                SWSS_LOG_NOTICE("TxMonitorOrchLogs: oid: %s", oidStr.c_str());
-                currTxStatistics->m_oid = oidStr;
-            }else{
-                SWSS_LOG_NOTICE("TxMonitorOrchLogs: cant get oid for interfae %s", interface.c_str());
-            }
-            continue;
-        }
-        u_int64_t newErrorCount = getNewErrorCount(currOid);
-           if(newErrorCount && newErrorCount){
-               bool newIsOk = getIsOkStatus(newErrorCount, currErrorCount);
-               if(newIsOk != currTxStatistics->isOk){
-                   currTxStatistics->isOk = newIsOk;
-                   updateStateDB(currOid, currTxStatistics->getStatus());
-
-               }
-       }
-       currTxStatistics->errorCount = newErrorCount;
-
+    std::string oidStr;
+    if(m_interfaceToOidTable.hget("",interface,oidStr)){
+        SWSS_LOG_NOTICE("TxMonitorOrchLogs: oid: %s", oidStr.c_str());
+        return oidStr;
+    }else{
+        SWSS_LOG_NOTICE("TxMonitorOrchLogs: cant get oid for interfae %s", interface.c_str());
+        return "null";
     }
 }
+
 
 u_int64_t TxMonitorOrch::getNewErrorCount(std::string currOid){
     std::string newErrorCountStr;
     if(m_countersTable.hget(currOid, "SAI_PORT_STAT_IF_OUT_ERRORS",newErrorCountStr)){
-        SWSS_LOG_NOTICE("TxMoni{torOrchLogs: new tx counter: %s\n",newErrorCountStr.c_str());
+        SWSS_LOG_NOTICE("TxMonitorOrchLogs: new tx counter: %s\n",newErrorCountStr.c_str());
         return stoul(newErrorCountStr);
     }
     //todo: what if the hget faild
     return 0;
 }
 
+
+
 bool TxMonitorOrch::getIsOkStatus(u_int64_t newErrorCount, u_int64_t currErrorCount){
     SWSS_LOG_ENTER();
     return (currErrorCount-newErrorCount) < this->m_threshold;
 }
+
+void TxMonitorOrch::poolTxErrorStatistics(std::string interface,TxPortErrStat* currTxStatistics){
+    SWSS_LOG_NOTICE("TxMonitorOrchLogs: check statistics and update for interface: %s.\n",interface.c_str());
+    std::string currOid = currTxStatistics->m_oid;
+    if(currOid=="null"){
+        currTxStatistics->m_oid =getOid(interface);
+        if(currTxStatistics->m_oid == "null"){
+            return;
+        }
+        updateStateDB(currTxStatistics->m_oid,"ok");
+
+    }
+
+    u_int64_t currErrorCount = currTxStatistics->m_errorCount;
+    SWSS_LOG_NOTICE("TxMonitorOrchLogs: last tx counter: %s\n",std::to_string(currErrorCount).c_str());
+    u_int64_t newErrorCount = getNewErrorCount(currOid);
+    if(newErrorCount && newErrorCount){
+       bool newIsOk = getIsOkStatus(newErrorCount, currErrorCount);
+       if(newIsOk != currTxStatistics->m_isOk){
+           currTxStatistics->m_isOk = newIsOk;
+           updateStateDB(currOid, currTxStatistics->getStatus());
+
+       }
+    }
+    currTxStatistics->m_errorCount = newErrorCount;
+}
+
+void TxMonitorOrch::doTask(SelectableTimer &timer){
+    SWSS_LOG_ENTER();
+    if(!gPortsOrch->allPortsReady()){
+        SWSS_LOG_NOTICE("TxMonitorOrchLogs: Ports are not ready yet");
+        return;
+    }
+    static IFtoTxPortErrStat interfaceToTxPortErrStat = createPortsErrorStatisticsMap();
+    //printPortsErrorStatistics(interfaceToTxPortErrStat);
+    for(const auto& entry : interfaceToTxPortErrStat){
+
+        std::string interface = entry.first;
+        TxPortErrStat* currTxStatistics = entry.second;
+        poolTxErrorStatistics(interface,currTxStatistics);
+
+    }
+}
+
+
 //TODO: take care in case configure change in runtime
