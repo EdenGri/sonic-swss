@@ -7,6 +7,7 @@
 
 #define DEFAULT_POLLPERIOD 30
 #define DEFAULT_THRESHOLD 5
+#define TX_TIMER_NAME "MC_TX_ERROR_COUNTERS_POLL"
 
 class TxPortErrStat{
     public:
@@ -34,10 +35,10 @@ class TxMonitorOrch: public Orch
 
 
     public:
-        static TxMonitorOrch& getInstance(TableConnector configueTxTableConnector,
-                                          TableConnector stateTxTableConnector,
-                                          TableConnector countersTableConnector,
-                                          TableConnector interfaceToOidTableConnector);
+        static TxMonitorOrch& getInstance(TableConnector cfgTxTblConnector,
+                                          TableConnector stateTxTblConnector,
+                                          TableConnector cntrTblConnector,
+                                          TableConnector ifToOidTblConnector);
 
 
         virtual void doTask(swss::SelectableTimer &timer);
@@ -46,18 +47,18 @@ class TxMonitorOrch: public Orch
     private:
 
 
-        swss::Table m_configueTxTable;
-        swss::Table m_stateTxTable;
-        swss::Table m_countersTable;
-        swss::Table m_interfaceToOidTable;
+        unique_ptr<swss::Table> m_cfgTxTbl;
+        unique_ptr<swss::Table> m_stateTxTbl;
+        unique_ptr<swss::Table> m_cntrTbl;
+        unique_ptr<swss::Table> m_ifToOidTbl;
         u_int32_t m_pollPeriod;
         u_int32_t m_threshold;
         IFtoTxPortErrStat createPortsErrorStatisticsMap();
-        void initConfigTxTable();
-        TxMonitorOrch(TableConnector configueTxTableConnectorr,
-                      TableConnector stateTxTableConnector,
-                      TableConnector countersTableConnector,
-                      TableConnector interfaceToOidTableConnector);
+        void initCfgTxTbl();
+        TxMonitorOrch(TableConnector cfgTxTblConnectorr,
+                      TableConnector stateTxTblConnector,
+                      TableConnector cntrTblConnector,
+                      TableConnector ifToOidTblConnector);
 
         virtual ~TxMonitorOrch(void);
         std::string getOid(std::string interface);
