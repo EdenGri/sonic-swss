@@ -1,4 +1,6 @@
 #include "txmonitororch.h"
+#include "converter.h"
+
 extern PortsOrch* gPortsOrch;
 
 TxMonitorOrch& TxMonitorOrch::getInstance(TableConnector cfgTxTblConnector,
@@ -70,33 +72,34 @@ void TxMonitorOrch::initPortsErrorStatisticsMap(){
     SWSS_LOG_ENTER();
     map<string, Port> &ifToPort =  gPortsOrch->getAllPorts();
     m_ifToTxPortErrStat = make_shared<IfToTxPortErrStat>();
-        for (auto &entry : ifToPort)
+    std::string oidStr;
+    for (auto &entry : ifToPort)
+    {
+        string interface = entry.first;
+        Port p = entry.second;
+
+        SWSS_LOG_NOTICE("interface name: %s", interface.c_str());
+        if(p.m_type != Port::PHY)
         {
-            string interface = entry.first;
-            Port p = entry.second;
-
-            SWSS_LOG_NOTICE("interface name: %s", interface.c_str());
-            if(p.m_type != Port::PHY)
-            {
-                continue;
-            }
-            std::string oidStr;
-            if(m_ifToOidTbl->hget("",interface,oidStr))
-            {
-                SWSS_LOG_NOTICE("oid: %s", oidStr.c_str());
-                SWSS_LOG_NOTICE("eden new mark to delete");
-                m_ifToTxPortErrStat->emplace(interface, make_shared<TxPortErrStat>(oidStr));
-                SWSS_LOG_NOTICE("eden after insertion ");
-                updateStateDB(oidStr.c_str(),true);
-            }
-            else
-            {
-                //todo:warning
-                SWSS_LOG_NOTICE("cant get oid for interface %s", interface.c_str());
-                m_ifToTxPortErrStat->emplace(interface,make_unique<TxPortErrStat>());
-            }
-
+            continue;
         }
+
+        if(m_ifToOidTbl->hget("",interface,oidStr))
+        {
+            SWSS_LOG_NOTICE("oid: %s", oidStr.c_str());
+            SWSS_LOG_NOTICE("eden new mark to delete");
+            m_ifToTxPortErrStat->emplace(interface, make_shared<TxPortErrStat>(oidStr));
+            SWSS_LOG_NOTICE("eden after insertion ");
+            updateStateDB(oidStr.c_str(),true);
+        }
+        else
+        {
+            //todo:warning
+            SWSS_LOG_NOTICE("cant get oid for interface %s", interface.c_str());
+            m_ifToTxPortErrStat->emplace(interface,make_unique<TxPortErrStat>());
+        }
+
+    }
     SWSS_LOG_NOTICE("create txMonitorOrch map");
 }
 
@@ -132,19 +135,26 @@ std::string TxMonitorOrch::getOid(std::string interface){
     else
     {
         SWSS_LOG_NOTICE("cant get oid for interfae %s", interface.c_str());
-        return "null";
+        return std::string{};
     }
 }
 
 
-u_int64_t TxMonitorOrch::getNewErrorCount(std::string currOid){
+bool TxMonitorOrch::getNewErrorCount(std::string currOid, u_int64_t& newErrorCount){
+
     std::string newErrorCountStr;
-    if(m_cntrTbl->hget(currOid, "SAI_PORT_STAT_IF_OUT_ERRORS",newErrorCountStr))
+    m_cntrTbl->hget(currOid, "SAI_PORT_STAT_IF_OUT_ERRORS",newErrorCountStr);
+    try
     {
-        SWSS_LOG_NOTICE("new tx counter: %s\n",newErrorCountStr.c_str());
-        return stoul(newErrorCountStr);
+        newErrorCount = to_uint<uint32_t>(newErrorCountStr);
+        return true;
     }
-    return 0;
+    catch(const std::exception& err)
+    {
+        SWSS_LOG_ERROR("Get tx error counter faild");
+        return false;
+    }
+
 }
 
 
@@ -191,11 +201,8 @@ void TxMonitorOrch::poolTxErrorStatistics(){
 
         u_int64_t currErrorCount = currTxStatistics->m_errorCount;
         SWSS_LOG_NOTICE("last tx counter: %s\n",std::to_string(currErrorCount).c_str());
-        u_int64_t newErrorCount = getNewErrorCount(currOid);
-        //todo
-
-
-        if(newErrorCount != 0 && newErrorCount != 0)
+        u_int64_t newErrorCount = currErrorCount;
+        if(getNewErrorCount(currOid, newErrorCount))
         {
            bool newIsOk = getIsOkStatus(newErrorCount, currErrorCount);
            if(newIsOk != currTxStatistics->m_isOk)

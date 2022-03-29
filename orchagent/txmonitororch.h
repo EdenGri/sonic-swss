@@ -11,7 +11,7 @@
 
 class TxPortErrStat{
     public:
-        TxPortErrStat(std::string oid = "null"):m_oid(oid){};
+        TxPortErrStat(std::string oid = std::string{}):m_oid(oid){};
     private:
         bool m_isOk{true};
         std::string m_oid{};
@@ -55,8 +55,7 @@ class TxMonitorOrch: public Orch
         void poolTxErrorStatistics();
         bool getIsOkStatus(u_int64_t, u_int64_t);
         void updateStateDB(std::string, bool);
-        u_int64_t getNewErrorCount(std::string currOid);
-
+        bool getNewErrorCount(std::string currOid, u_int64_t& newErrorCount);
 
 };
 
