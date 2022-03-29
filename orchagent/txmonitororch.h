@@ -11,29 +11,19 @@
 
 class TxPortErrStat{
     public:
+        TxPortErrStat(std::string oid = "null"):m_oid(oid){};
+    private:
         bool m_isOk{true};
         std::string m_oid{};
         u_int64_t m_errorCount{};
-        TxPortErrStat(std::string oid = "null"):m_oid(oid){}
-        std::string getStatus(){
-            if(m_isOk){
-                return "ok";
-            }
-            return "not-ok";
-        }
-        std::string to_string(){
-            return "status: " + getStatus() + "\n" +
-                    "oid: " + m_oid +
-                    "tx errors: " + std::to_string(m_errorCount) + "\n";
-        }
+
+        friend class TxMonitorOrch;
 };
 
-typedef std::map<std::string, std::shared_ptr<TxPortErrStat>> IFtoTxPortErrStat;
+typedef std::map<std::string, std::shared_ptr<TxPortErrStat>> IfToTxPortErrStat;
 
 class TxMonitorOrch: public Orch
 {
-
-
     public:
         static TxMonitorOrch& getInstance(TableConnector cfgTxTblConnector,
                                           TableConnector stateTxTblConnector,
@@ -46,14 +36,14 @@ class TxMonitorOrch: public Orch
 
     private:
 
-
         unique_ptr<swss::Table> m_cfgTxTbl;
         unique_ptr<swss::Table> m_stateTxTbl;
         unique_ptr<swss::Table> m_cntrTbl;
         unique_ptr<swss::Table> m_ifToOidTbl;
-        u_int32_t m_pollPeriod;
-        u_int32_t m_threshold;
-        IFtoTxPortErrStat createPortsErrorStatisticsMap();
+        uint32_t m_pollPeriod;
+        uint32_t m_threshold;
+        shared_ptr<IfToTxPortErrStat> m_ifToTxPortErrStat;
+        void initPortsErrorStatisticsMap();
         void initCfgTxTbl();
         TxMonitorOrch(TableConnector cfgTxTblConnectorr,
                       TableConnector stateTxTblConnector,
@@ -62,9 +52,9 @@ class TxMonitorOrch: public Orch
 
         virtual ~TxMonitorOrch(void);
         std::string getOid(std::string interface);
-        void poolTxErrorStatistics(std::string interface,std::shared_ptr<TxPortErrStat> currTxStatistics);
+        void poolTxErrorStatistics();
         bool getIsOkStatus(u_int64_t, u_int64_t);
-        void updateStateDB(std::string, std::string);
+        void updateStateDB(std::string, bool);
         u_int64_t getNewErrorCount(std::string currOid);
 
 
