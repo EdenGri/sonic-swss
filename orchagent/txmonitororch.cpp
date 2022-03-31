@@ -54,17 +54,18 @@ TxMonitorOrch::TxMonitorOrch(TableConnector cfgTxTblConnector,
 
 void TxMonitorOrch::initCfgTxTbl(){
     /*
-     table name: "CFG_PORT_TX_ERROR_TABLE" "values"
+     table name: "CFG_PORT_TX_ERROR_TABLE" "Config"
      "polling_period"
      <period value>
      "threshold"
      <threshold value>
      */
-
+    SWSS_LOG_ENTER();
     vector<FieldValueTuple> fvs;
     fvs.emplace_back("polling_period", std::to_string(m_pollPeriod));
     fvs.emplace_back("threshold",std::to_string(m_threshold));
-    m_cfgTxTbl->set("values",fvs);
+    m_cfgTxTbl->set("Config",fvs);
+    SWSS_LOG_NOTICE("Init CFG_PORT_TX_ERROR_TABLE with default values");
 }
 
 void TxMonitorOrch::initPortsErrorStatisticsMap(){
