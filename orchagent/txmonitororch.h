@@ -9,6 +9,7 @@
 #define DEFAULT_THRESHOLD 5
 #define TX_TIMER_NAME "MC_TX_ERROR_COUNTERS_POLL"
 
+
 class TxPortErrStat{
     public:
         TxPortErrStat(std::string oid = std::string{}):m_oid(oid){};
@@ -20,7 +21,7 @@ class TxPortErrStat{
         friend class TxMonitorOrch;
 };
 
-typedef std::map<std::string, std::shared_ptr<TxPortErrStat>> IfToTxPortErrStat;
+typedef std::map<std::string, TxPortErrStat> IfToTxPortErrStat;
 
 class TxMonitorOrch: public Orch
 {
@@ -32,7 +33,7 @@ class TxMonitorOrch: public Orch
 
 
         virtual void doTask(swss::SelectableTimer &timer);
-        virtual void doTask(Consumer &consumer){}
+        virtual void doTask(Consumer &consumer);
 
     private:
 
@@ -40,9 +41,10 @@ class TxMonitorOrch: public Orch
         unique_ptr<swss::Table> m_stateTxTbl;
         unique_ptr<swss::Table> m_cntrTbl;
         unique_ptr<swss::Table> m_ifToOidTbl;
+        SelectableTimer* m_timer = nullptr;
         uint32_t m_pollPeriod;
         uint32_t m_threshold;
-        shared_ptr<IfToTxPortErrStat> m_ifToTxPortErrStat;
+        IfToTxPortErrStat* m_ifToTxPortErrStat;
         void initPortsErrorStatisticsMap();
         void initCfgTxTbl();
         TxMonitorOrch(TableConnector cfgTxTblConnectorr,
@@ -56,6 +58,10 @@ class TxMonitorOrch: public Orch
         bool getIsOkStatus(u_int64_t, u_int64_t);
         void updateStateDB(std::string, bool);
         bool getNewErrorCount(std::string currOid, u_int64_t& newErrorCount);
+        void setTimer();
+        void handleConfigUpdate(std::vector<FieldValueTuple> fvs);
+        void handlePeriodUpdate(std::string newValue);
+        void handleThresholdUpdate(std::string newValue);
 
 };
 
