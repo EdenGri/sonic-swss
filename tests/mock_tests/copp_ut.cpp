@@ -1,19 +1,42 @@
 #include "gtest/gtest.h"
-#include <vector>
 #include <string>
 #include "schema.h"
 #include "warm_restart.h"
 #include "ut_helper.h"
 #include "coppmgr.h"
 #include "coppmgr.cpp"
-
+#include <fstream>
+#include <streambuf>
 using namespace std;
 using namespace swss;
 
+void create_init_file()
+{
+    system("sudo mkdir /etc/sonic/");
+    system("sudo chmod 777 /etc/sonic/");
+
+    ofstream file(COPP_INIT_FILE);
+
+    ifstream t("copp_cfg.json");
+    string data((std::istreambuf_iterator<char>(t)),
+                 std::istreambuf_iterator<char>());
+
+    file << data;
+
+    t.close();
+    file.close();
+}
+
+void cleanup()
+{
+    system("sudo rm -rf /etc/sonic/");
+}
+
 TEST(CoppMgrTest, CoppTest)
 {
-   system("sudo /sonic/src/sonic-config-engine/sonic-cfggen -d -t  /sonic/files/image_config/copp/copp_cfg.j2 > /etc/sonic/copp_cfg.json");
-   const vector<string> cfg_copp_tables = {
+    create_init_file();
+
+    const vector<string> cfg_copp_tables = {
                 CFG_COPP_TRAP_TABLE_NAME,
                 CFG_COPP_GROUP_TABLE_NAME,
                 CFG_FEATURE_TABLE_NAME,
@@ -42,17 +65,12 @@ TEST(CoppMgrTest, CoppTest)
 
     CoppMgr coppmgr(&cfgDb, &appDb, &stateDb, cfg_copp_tables);
 
-
     string overide_val;
     coppTable.hget("queue1_group1", "cbs",overide_val);
     EXPECT_EQ( overide_val, "6000");
-    vector<string> keys;
-    coppTable.getKeys(keys);
-    cout << "EDEN starting copp ut." << endl;
-    for( auto key:keys){
-        cout << key <<endl;
-    }
 
+
+    cleanup();
 }
 
 
