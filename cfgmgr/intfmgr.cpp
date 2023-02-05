@@ -468,7 +468,7 @@ void IntfMgr::updateSubIntfAdminStatus(const string &alias, const string &admin)
                 continue;
             }
             std::vector<FieldValueTuple> fvVector;
-            string subintf_admin = setHostSubIntfAdminStatus(intf, m_subIntfList[intf].adminStatus, admin); 
+            string subintf_admin = setHostSubIntfAdminStatus(intf, m_subIntfList[intf].adminStatus, admin);
             m_subIntfList[intf].currAdminStatus = subintf_admin;
             FieldValueTuple fvTuple("admin_status", subintf_admin);
             fvVector.push_back(fvTuple);
@@ -486,7 +486,18 @@ std::string IntfMgr::setHostSubIntfAdminStatus(const string &alias, const string
     {
         SWSS_LOG_INFO("subintf %s admin_status: %s", alias.c_str(), admin_status.c_str());
         cmd << IP_CMD " link set " << shellquote(alias) << " " << shellquote(admin_status);
-        EXEC_WITH_ERROR_THROW(cmd.str(), res);
+        cmd_str = cmd.str();
+        int ret = swss::exec(cmd_str, res);
+        if (ret && !isIntfStateOk(alias))
+        {
+            // Can happen when a DEL notification is sent by portmgrd immediately followed by a new SET notification
+            SWSS_LOG_WARN("Setting admin_status to %s netdev failed with cmd:%s, rc:%d, error:%s",
+                          alias.c_str(), cmd_str.c_str(), ret, res.c_str());
+        }
+        else if (ret)
+        {
+            throw runtime_error(cmd_str + " : " + res);
+        }
         return admin_status;
     }
     else
