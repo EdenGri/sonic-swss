@@ -480,7 +480,7 @@ void IntfMgr::updateSubIntfAdminStatus(const string &alias, const string &admin)
 std::string IntfMgr::setHostSubIntfAdminStatus(const string &alias, const string &admin_status, const string &parent_admin_status)
 {
     stringstream cmd;
-    string res;
+    string res, cmd_str;
 
     if (parent_admin_status == "up" || admin_status == "down")
     {
