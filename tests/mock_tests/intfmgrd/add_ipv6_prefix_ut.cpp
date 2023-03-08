@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 #include <iostream>
-#include <fstream>  
+#include <fstream>
 #include <unistd.h>
 #include <sys/stat.h>
 #include "../mock_table.h"
@@ -26,6 +26,13 @@ int cb(const std::string &cmd, std::string &stdout){
     return 0;
 }
 
+int cb2(const std::string &cmd, std::string &stdout){
+    if (cmd == "link set Ethernet64.10 up"){
+        return 1;
+    }
+    return 0;
+}
+
 // Test Fixture
 namespace add_ipv6_prefix_ut
 {
@@ -35,14 +42,14 @@ namespace add_ipv6_prefix_ut
         std::shared_ptr<swss::DBConnector> m_app_db;
         std::shared_ptr<swss::DBConnector> m_state_db;
         std::vector<std::string> cfg_intf_tables;
-        
+
         virtual void SetUp() override
-        {   
+        {
             testing_db::reset();
             m_config_db = std::make_shared<swss::DBConnector>("CONFIG_DB", 0);
             m_app_db = std::make_shared<swss::DBConnector>("APPL_DB", 0);
             m_state_db = std::make_shared<swss::DBConnector>("STATE_DB", 0);
-            
+
             swss::WarmStart::initialize("intfmgrd", "swss");
 
             std::vector<std::string> tables = {
@@ -105,5 +112,11 @@ namespace add_ipv6_prefix_ut
             }
         }
         ASSERT_EQ(ip_cmd_called, 1);
+    }
+
+    TEST_F(IntfMgrTest, testEden){
+        callback = cb2;
+        swss::IntfMgr intfmgr(m_config_db.get(), m_app_db.get(), m_state_db.get(), cfg_intf_tables);
+        EXPECT_THROW(intfmgr.setHostSubIntfAdminStatus("Ethernet64.10", "up", "up"), std::runtime_error*);
     }
 }
